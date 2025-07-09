@@ -1,0 +1,24 @@
+import mongoose from "mongoose"
+
+const userSchema=new mongoose.Schema({
+
+    email:{
+        type:String,
+        required:true,
+        unique:true
+    },
+    auth0Id:{
+        type:String
+    },
+    status:{
+        type:String,
+        enum: ["provisioning", "updating", "deleting", "success", "failed"],
+        default:"provisioning"
+    }
+},
+{timestamps:true})
+
+
+const User=mongoose.model('User',userSchema);
+
+export default User;

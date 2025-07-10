@@ -121,7 +121,7 @@ curl http://localhost:5000/api/users | jq
 
 🔗 [GitHub Repository](https://github.com/dipalisurve2377/user-management-app)
 
-> Replace with your actual GitHub repo URL
+
 
 
 ## 🏁 Setup Instructions

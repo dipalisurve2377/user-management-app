@@ -5,6 +5,7 @@ import { getAuth0Token } from "../auth0Service";
 
 
 
+
 dotenv.config();
 
 let connected=false;
@@ -37,15 +38,19 @@ export const createUserInAuth0=async(email:string,password:string):Promise<strin
    
     const token=await getAuth0Token();
      
+ console.log("Creating Auth0 user with:", { email, password, token });
 
     const userRes= await axios.post(`https://dev-kfmfhnq5hivv164x.us.auth0.com/api/v2/users`,{ // AUTH_DOMAIN from env
         email,
         password,
         connection:`Username-Password-Authentication`,
+        email_verified: false, 
+        verify_email: false 
     },
     {
         headers:{
              Authorization: `Bearer ${token}`,
+            
         }
     }
 );
@@ -56,7 +61,7 @@ return userRes.data.user_id;
 
 export const updateUserStatus=async(
     email:string,
-    status:'provisioning' | 'success' | 'failed' | 'updating' | 'deleting',
+    status:'provisioning' | 'success' | 'failed' | 'updating' | 'deleting' | 'updated' | 'deleted',
     auth0Id?:string
 )=>{
     await connectDB();

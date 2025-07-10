@@ -20,7 +20,7 @@ export async function updateUserWorkflow({email,updates}:UpdateUserInput):Promis
     try {
         await updateUserStatus(email,'updating');
         await updateUserInAuth0(email,updates);
-        await updateUserStatus(email,'success');
+        await updateUserStatus(email,'updated');
     } catch (error) {
       console.error("Update workflow failed:", error);
     await updateUserStatus(email, 'failed');

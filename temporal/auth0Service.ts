@@ -1,8 +1,24 @@
 import axios from "axios";
 import dotenv from "dotenv";
 
-dotenv.config();
+import path from "path";
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
 
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+
+dotenv.config({
+  path: path.resolve(__dirname, "./.env") 
+});
+
+console.log("🔍 Auth0 ENV values:", {
+  AUTH0_CLIENT_ID: process.env.AUTH0_CLIENT_ID,
+  AUTH0_CLIENT_SECRET: process.env.AUTH0_CLIENT_SECRET,
+  AUTH0_AUDIENCE: process.env.AUTH0_AUDIENCE,
+});
 
 export const getAuth0Token = async (): Promise<string> => {
   try {

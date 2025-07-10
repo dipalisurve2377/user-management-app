@@ -12,7 +12,7 @@ const userSchema=new mongoose.Schema({
     },
     status:{
         type:String,
-        enum: ["provisioning", "updating", "deleting", "success", "failed"],
+        enum: ["provisioning", "updating", "deleting", "success", "failed", "updated" | "deleted"],
         default:"provisioning"
     }
 },

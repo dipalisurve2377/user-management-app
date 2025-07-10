@@ -34,14 +34,7 @@ const User = mongoose.models.User || mongoose.model('User', userSchema);
 
 export const createUserInAuth0=async(email:string,password:string):Promise<string>=>{
 
-    // const tokenRes= await axios.post(`https://dev-kfmfhnq5hivv164x.us.auth0.com/oauth/token`,{  //AUTH0_DOMAIN from env
-    // client_id: process.env.AUTH0_CLIENT_ID || "wznMSxY4b83LsuWuZIbQ4OO0S12T60ec",
-    // client_secret: process.env.AUTH0_CLIENT_SECRET || "MLyIPOfDZm-BZ0EsSaMr5Ziop4oZxJ1GMoOZ2oNEAfRE7Ou0_wkzlG4MLbvnatZ1",
-    // audience: process.env.AUTH0_AUDIENCE || "https://dev-kfmfhnq5hivv164x.us.auth0.com/api/v2/",
-    // grant_type: 'client_credentials',
-    // });
-
-    // const token= tokenRes.data.access_token;
+   
     const token=await getAuth0Token();
      
 
@@ -90,14 +83,7 @@ export const updateUserInAuth0 =async(
         throw new Error("User of Auth0 ID not found")
     }
 
-    // const tokenRes=await axios.post(`https://dev-kfmfhnq5hivv164x.us.auth0.com/oauth/token`,{
-    // client_id: process.env.AUTH0_CLIENT_ID || "wznMSxY4b83LsuWuZIbQ4OO0S12T60ec",
-    // client_secret: process.env.AUTH0_CLIENT_SECRET || "MLyIPOfDZm-BZ0EsSaMr5Ziop4oZxJ1GMoOZ2oNEAfRE7Ou0_wkzlG4MLbvnatZ1",
-    // audience: process.env.AUTH0_AUDIENCE || "https://dev-kfmfhnq5hivv164x.us.auth0.com/api/v2/",
-    // grant_type: 'client_credentials',
-    // });
-
-    // const token = tokenRes.data.access_token;
+  
 
     const token=await getAuth0Token();
 
@@ -127,14 +113,7 @@ export const deleteUserFromAuth0=async(email:string):Promise<void>=>{
     throw new Error('User not found or missing Auth0 ID');
   }
 
-//    const tokenRes=await axios.post(`https://dev-kfmfhnq5hivv164x.us.auth0.com/oauth/token`,{
-//     client_id: process.env.AUTH0_CLIENT_ID || "wznMSxY4b83LsuWuZIbQ4OO0S12T60ec",
-//     client_secret: process.env.AUTH0_CLIENT_SECRET || "MLyIPOfDZm-BZ0EsSaMr5Ziop4oZxJ1GMoOZ2oNEAfRE7Ou0_wkzlG4MLbvnatZ1",
-//     audience: process.env.AUTH0_AUDIENCE || "https://dev-kfmfhnq5hivv164x.us.auth0.com/api/v2/",
-//     grant_type: 'client_credentials',
-//     });
 
-//     const token = tokenRes.data.access_token;
 
     const token=await getAuth0Token();
 
@@ -150,14 +129,7 @@ export const deleteUserFromAuth0=async(email:string):Promise<void>=>{
 }
 
 export const listUsersFromAuth0=async():Promise<any[]>=>{
-    // const tokenRes=await axios.post(`https://dev-kfmfhnq5hivv164x.us.auth0.com/oauth/token`,{
-    // client_id: process.env.AUTH0_CLIENT_ID || "wznMSxY4b83LsuWuZIbQ4OO0S12T60ec",
-    // client_secret: process.env.AUTH0_CLIENT_SECRET || "MLyIPOfDZm-BZ0EsSaMr5Ziop4oZxJ1GMoOZ2oNEAfRE7Ou0_wkzlG4MLbvnatZ1",
-    // audience: process.env.AUTH0_AUDIENCE || "https://dev-kfmfhnq5hivv164x.us.auth0.com/api/v2/",
-    // grant_type: 'client_credentials',
-    // })
-
-    // const token=tokenRes.data.access_token;
+   
 
     const token=await getAuth0Token();
 

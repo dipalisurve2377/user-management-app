@@ -3,8 +3,10 @@ import { createUserController, deleteUserController, listUsersController, update
 
 const router=express.Router();
 
-router.post('/',createUserController);
-router.put('/',updateUserController);
-router.delete("/",deleteUserController);
-router.get("/",listUsersController);
+router.post('/create', createUserController);
+router.put('/update', updateUserController);
+router.delete('/delete', deleteUserController);
+router.get('/get', listUsersController);
+
+
 export default router;

@@ -84,16 +84,17 @@ User-Management/
 
 
 # 📩 CREATE USER
-curl -X POST http://localhost:5000/api/users \
+curl -X POST http://localhost:5000/api/users/create \
   -H "Content-Type: application/json" \
-  -d '{
-    "email": "testuser@example.com",
-    "password": "Temp@1234",
-    "name": "Test User"
-  }'
+  -d 
+  '{"email": "testuser@example.com",
+   "password": "Temp@1234", 
+   "name": "Test User"
+   }'
+
 
 # 🔁 UPDATE USER
-curl -X PUT http://localhost:5000/api/users \
+curl -X PUT http://localhost:5000/api/users/update \
   -H "Content-Type: application/json" \
   -d '{
     "email": "testuser@example.com",
@@ -103,16 +104,20 @@ curl -X PUT http://localhost:5000/api/users \
   }'
 
 
+
   # ❌ DELETE USER
-curl -X DELETE http://localhost:5000/api/users \
+
+curl -X DELETE http://localhost:5000/api/users/delete \
   -H "Content-Type: application/json" \
   -d '{
     "email": "testuser@example.com"
   }'
 
 
+
 # 📃 LIST USERS
-curl http://localhost:5000/api/users | jq
+curl http://localhost:5000/api/users/get | jq
+
 
 
 

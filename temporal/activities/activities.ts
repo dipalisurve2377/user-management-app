@@ -25,6 +25,7 @@ const userSchema = new mongoose.Schema(
     email: String,
     auth0Id: String,
     status: String,
+    name:String
   },
   { timestamps: true }
 );
@@ -33,16 +34,24 @@ const User = mongoose.models.User || mongoose.model('User', userSchema);
 
 // Auth0 activity
 
-export const createUserInAuth0=async(email:string,password:string):Promise<string>=>{
+export const createUserInAuth0=async(email:string,password:string,name:string):Promise<string>=>{
 
    
     const token=await getAuth0Token();
      
- console.log("Creating Auth0 user with:", { email, password, token });
+ console.log("Sending user to Auth0:", {
+  email,
+  password,
+  name,
+  connection: "Username-Password-Authentication",
+  token,
+});
 
-    const userRes= await axios.post(`https://dev-kfmfhnq5hivv164x.us.auth0.com/api/v2/users`,{ // AUTH_DOMAIN from env
+
+    const userRes= await axios.post(`https://dev-kfmfhnq5hivv164x.us.auth0.com/api/v2/users`,{ 
         email,
         password,
+        name,
         connection:`Username-Password-Authentication`,
         email_verified: false, 
         verify_email: false 
@@ -62,13 +71,15 @@ return userRes.data.user_id;
 export const updateUserStatus=async(
     email:string,
     status:'provisioning' | 'success' | 'failed' | 'updating' | 'deleting' | 'updated' | 'deleted',
-    auth0Id?:string
+    auth0Id?:string,
+    name?:string
 )=>{
     await connectDB();
 
     const update:any={status};
 
     if(auth0Id) update.auth0Id=auth0Id;
+    if(name) update.name=name;
 
     await User.findOneAndUpdate({email},update,{upsert:true,new:true,})
 }
@@ -78,7 +89,7 @@ export const updateUserStatus=async(
 
 export const updateUserInAuth0 =async(
     email:string,
-    updates:{email?:string;password?:string}
+    updates:{email?:string;password?:string,name?:string}
 ):Promise<void>=>{
     await connectDB();
 
@@ -106,6 +117,8 @@ export const updateUserInAuth0 =async(
             }
         }
     )
+
+    await updateUserStatus(email, 'updated', undefined, updates.name);
 }
 
 

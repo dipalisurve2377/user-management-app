@@ -4,15 +4,15 @@ import { triggerDeleteUser } from "../workflows/triggerDeleteUser.ts";
 import { triggerListUsers } from "../workflows/triggerListUsers.ts";
 
 export const createUserController=async(req,res)=>{
-    const {email,password}=req.body;
+    const {email,password,name}=req.body;
 
-    if(!email || !password)
+    if(!email || !password|| !name)
     {
-        return res.status(400).json({ error: 'Email and password are required.'})
+        return res.status(400).json({ error: 'Email ,Name and password are required.'})
     }
 
     try {
-        const workflowId= await triggerCreateUser({email,password});
+        const workflowId= await triggerCreateUser({email,password,name});
             res.status(200).json({ message: 'User provisioning started', workflowId });
     } catch (error) {
      console.error('Error starting workflow:', error);
@@ -21,7 +21,7 @@ export const createUserController=async(req,res)=>{
 }
 
 export const updateUserController=async(req,res)=>{
-    const {email,updates}=req.body;
+    const {email,updates,name}=req.body;
 
     if (!email || !updates) {
     return res.status(400).json({ error: 'Email and updates are required.' });
@@ -63,6 +63,7 @@ export const listUsersController=async (req,res)=>{
     try {
     const users=await triggerListUsers();
     const cleanedUsers = users.map(user => ({
+      name:user.name,
       email: user.email,
       user_id: user.user_id,
       created_at: user.created_at,

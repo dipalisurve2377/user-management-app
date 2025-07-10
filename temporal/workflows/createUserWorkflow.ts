@@ -8,14 +8,15 @@ const {createUserInAuth0,updateUserStatus}=proxyActivities<typeof activities>({
 
 export interface CreateUserInput{
     email:string,
-    password:string
+    password:string,
+    name:string
 }
 
-export async function createUserWorkflow({email,password}:CreateUserInput):Promise<void> {
+export async function createUserWorkflow({email,password,name}:CreateUserInput):Promise<void> {
     try {
         await updateUserStatus(email,'provisioning');
-        const auth0id=await createUserInAuth0(email,password);
-        await updateUserStatus(email,"success",auth0id);
+        const auth0id=await createUserInAuth0(email,password,name);
+        await updateUserStatus(email,"success",auth0id,name);
     } catch (error) {
         console.error("Workflow failed",error);
         await updateUserStatus(email,'failed');

@@ -14,7 +14,7 @@ export async function deleteUserWorkflow({email}:DeleteUserInput):Promise<void>{
     try {
         await updateUserStatus(email,'deleting');
         await deleteUserFromAuth0(email);
-        await updateUserStatus(email,'success')
+        await updateUserStatus(email,'deleted')
     } catch (error) {
       console.error('Delete workflow failed:', error);
     await updateUserStatus(email, 'failed');

@@ -2,8 +2,10 @@ import { triggerCreateUser } from "../workflows/triggerCreateUser.ts";
 import {triggerUpdateUser} from "../workflows/triggerUpdateUser.ts"
 import { triggerDeleteUser } from "../workflows/triggerDeleteUser.ts";
 import { triggerListUsers } from "../workflows/triggerListUsers.ts";
+import User from "../models/User.js";
 
 export const createUserController=async(req,res)=>{
+
     const {email,password,name}=req.body;
 
     if(!email || !password|| !name)
@@ -11,11 +13,22 @@ export const createUserController=async(req,res)=>{
         return res.status(400).json({ error: 'Email ,Name and password are required.'})
     }
 
-    try {
+    try {      
+      await User.create({
+      email,
+      name,
+      password, 
+      status: 'provisioning',      
+    });
+
+    console.log(`[${new Date().toISOString()}] User saved with status 'provisioning'. Scheduling workflow...`);
+
         const workflowId= await triggerCreateUser({email,password,name});
-            res.status(200).json({ message: 'User provisioning started', workflowId });
-    } catch (error) {
-     console.error('Error starting workflow:', error);
+        res.status(200).json({ message: 'User provisioning started', workflowId });
+
+    } catch (error) 
+    {
+    console.error('Error starting workflow:', error);
     res.status(500).json({ error: 'Failed to start user creation workflow' });   
     }
 }
@@ -35,8 +48,6 @@ export const updateUserController=async(req,res)=>{
     res.status(500).json({ error: 'Failed to start user update workflow' }); 
   }
 }
-
-
 
 // delete user
 
@@ -67,11 +78,11 @@ export const listUsersController=async (req,res)=>{
       email: user.email,
       user_id: user.user_id,
       created_at: user.created_at,
-      // email_verified: user.email_verified,
+      
     }));
 
     res.status(200).json({ users: cleanedUsers });
-        // res.status(200).json({users});
+        
 
     } catch (error) {
      

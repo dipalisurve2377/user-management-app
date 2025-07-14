@@ -1,18 +1,30 @@
 import { getTemporalClient } from "../../temporal/client";
 
-import {deleteUserWorkflow,DeleteUserInput} from "../../temporal/workflows/deleteUserWorkflow"
+import {
+  deleteUserWorkflow,
+  DeleteUserInput,
+} from "../../temporal/workflows/deleteUserWorkflow";
 
+export const triggerDeleteUser = async (input: DeleteUserInput) => {
+  const client = await getTemporalClient();
 
-export const triggerDeleteUser=async(input:DeleteUserInput)=>{
-    const client= await getTemporalClient();
+  const handle = await client.start(deleteUserWorkflow, {
+    taskQueue: "user-management-queue",
+    workflowId: `delete-user-${input.email}`,
+    args: [input],
+    retry: {
+      maximumAttempts: 3,
+      initialInterval: "5s",
+      backoffCoefficient: 2,
+      maximumInterval: "30s",
+      nonRetryableErrorTypes: [
+        "MissingAuth0ID",
+        "Auth0ClientError",
+        "GenericDeleteFailure",
+      ],
+    },
+  });
 
-    const handle=await client.start(deleteUserWorkflow,{
-        taskQueue:'user-management-queue',
-        workflowId:`delete-user-${input.email}`,
-        args:[input],
-
-    });
-    
- console.log(`Started delete user workflow ${handle.workflowId}`);
+  console.log(`Started delete user workflow ${handle.workflowId}`);
   return handle.workflowId;
-}
+};

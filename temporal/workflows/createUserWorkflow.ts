@@ -1,26 +1,47 @@
-
 import { proxyActivities } from "@temporalio/workflow";
-import type * as activities from "../activities/activities.ts"
+import type * as activities from "../activities/activities.ts";
+import { sleep } from "@temporalio/workflow";
+import { ApplicationFailure } from "@temporalio/workflow";
 
-const {createUserInAuth0,updateUserStatus}=proxyActivities<typeof activities>({
-    startToCloseTimeout:'10 seconds'
+const { createUserInAuth0, updateUserStatus } = proxyActivities<
+  typeof activities
+>({
+  startToCloseTimeout: "20 seconds",
+  retry: {
+    maximumAttempts: 5,
+    initialInterval: "2s",
+    backoffCoefficient: 2,
+    maximumInterval: "30s",
+    nonRetryableErrorTypes: ["Auth0ClientError", "GenericCreateFailure"],
+  },
 });
 
-export interface CreateUserInput{
-    email:string,
-    password:string,
-    name:string
+export interface CreateUserInput {
+  email: string;
+  password: string;
+  name: string;
 }
 
-export async function createUserWorkflow({email,password,name}:CreateUserInput):Promise<void> {
-    try {
-        await updateUserStatus(email,'provisioning');
-        const auth0id=await createUserInAuth0(email,password,name);
-        await updateUserStatus(email,"success",auth0id,name);
-    } catch (error) {
-        console.error("Workflow failed",error);
-        await updateUserStatus(email,'failed');
-        throw error;
+export async function createUserWorkflow({
+  email,
+  password,
+  name,
+}: CreateUserInput): Promise<void> {
+  try {
+    const auth0id = await createUserInAuth0(email, password, name);
+
+    await sleep("20 seconds");
+
+    await updateUserStatus(email, "success", auth0id, name);
+  } catch (error) {
+    console.error("CreateUserWorkflow failed", error);
+
+    await updateUserStatus(email, "failed");
+
+    if (error instanceof ApplicationFailure) {
+      console.error("ApplicationFailure type:", error.type);
     }
-}
 
+    throw error;
+  }
+}

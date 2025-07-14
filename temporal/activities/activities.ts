@@ -1,21 +1,18 @@
 import axios from "axios";
-import mongoose, { connection } from "mongoose"
+import mongoose, { connection } from "mongoose";
 import dotenv from "dotenv";
 import { getAuth0Token } from "../auth0Service";
-
-
-
+import { ApplicationFailure } from "@temporalio/client";
 
 dotenv.config();
 
-let connected=false;
+let connected = false;
 
-const connectDB=async()=>{
-    if(!connected)
-    {
-        await mongoose.connect(process.env.MONGO_URI || 'mongodb+srv://dipali:dipali2000@cluster0.pdgsqtx.mongodb.net/');
-        connected=true
-    }
+const connectDB = async () => {
+  if (!connected) {
+    await mongoose.connect(process.env.MONGO_URI as string);
+    connected = true;
+  }
 };
 
 // User Schema (duplicate of backend's User model)
@@ -25,137 +22,306 @@ const userSchema = new mongoose.Schema(
     email: String,
     auth0Id: String,
     status: String,
-    name:String
+    name: String,
   },
   { timestamps: true }
 );
-const User = mongoose.models.User || mongoose.model('User', userSchema);
-
+const User = mongoose.models.User || mongoose.model("User", userSchema);
 
 // Auth0 activity
 
-export const createUserInAuth0=async(email:string,password:string,name:string):Promise<string>=>{
+export const createUserInAuth0 = async (
+  email: string,
+  password: string,
+  name: string
+): Promise<string> => {
+  try {
+    const token = await getAuth0Token();
 
-   
-    const token=await getAuth0Token();
-     
- console.log("Sending user to Auth0:", {
-  email,
-  password,
-  name,
-  connection: "Username-Password-Authentication",
-  token,
-});
+    console.log("Sending user to Auth0:", {
+      email,
+      password,
+      name,
+      connection: "Username-Password-Authentication",
+      token,
+    });
 
-
-    const userRes= await axios.post(`https://dev-kfmfhnq5hivv164x.us.auth0.com/api/v2/users`,{ 
+    const userRes = await axios.post(
+      `https://${process.env.AUTH0_DOMAIN}/api/v2/users`,
+      {
         email,
         password,
         name,
-        connection:`Username-Password-Authentication`,
-        email_verified: false, 
-        verify_email: false 
-    },
-    {
-        headers:{
-             Authorization: `Bearer ${token}`,
-            
-        }
+        connection: `Username-Password-Authentication`,
+        email_verified: false,
+        verify_email: false,
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+    return userRes.data.user_id;
+  } catch (error: any) {
+    let errorMessage = `Failed to create user in Auth0 (email: ${email})`;
+
+    if (axios.isAxiosError(error) && error.response) {
+      const status = error.response.status;
+      const data = JSON.stringify(error.response.data);
+      errorMessage += ` — Auth0 responded with status ${status}: ${data}`;
+
+      if (status >= 400 && status < 500) {
+        throw ApplicationFailure.create({
+          message: errorMessage,
+          type: "Auth0ClientError",
+          nonRetryable: true,
+        });
+      }
+
+      throw ApplicationFailure.create({
+        message: errorMessage,
+        type: "Auth0ServerError",
+        nonRetryable: false,
+      });
+    } else if (axios.isAxiosError(error) && error.request) {
+      errorMessage +=
+        " — No response received from Auth0. Possible network or DNS issue.";
+      throw ApplicationFailure.create({
+        message: errorMessage,
+        type: "NetworkError",
+        nonRetryable: false,
+      });
+    } else {
+      errorMessage += ` — Unexpected setup error: ${
+        error.message || "Unknown"
+      }`;
+      throw ApplicationFailure.create({
+        message: errorMessage,
+        type: "GenericCreateFailure",
+        nonRetryable: true,
+      });
     }
-);
-return userRes.data.user_id;
-}
+  }
+};
 
 // mongoDB activity
 
-export const updateUserStatus=async(
-    email:string,
-    status:'provisioning' | 'success' | 'failed' | 'updating' | 'deleting' | 'updated' | 'deleted',
-    auth0Id?:string,
-    name?:string
-)=>{
-    await connectDB();
+export const updateUserStatus = async (
+  email: string,
+  status:
+    | "provisioning"
+    | "success"
+    | "failed"
+    | "updating"
+    | "deleting"
+    | "updated"
+    | "deleted",
+  auth0Id?: string,
+  name?: string
+) => {
+  await connectDB();
 
-    const update:any={status};
+  const update: any = { status };
 
-    if(auth0Id) update.auth0Id=auth0Id;
-    if(name) update.name=name;
+  if (auth0Id) update.auth0Id = auth0Id;
+  if (name) update.name = name;
 
-    await User.findOneAndUpdate({email},update,{upsert:true,new:true,})
-}
-
+  await User.findOneAndUpdate({ email }, update, { upsert: true, new: true });
+};
 
 // update in auth0 activity
 
-export const updateUserInAuth0 =async(
-    email:string,
-    updates:{email?:string;password?:string,name?:string}
-):Promise<void>=>{
+export const updateUserInAuth0 = async (
+  email: string,
+  updates: { email?: string; password?: string; name?: string }
+): Promise<void> => {
+  try {
     await connectDB();
 
-    const user=await User.findOne({email});
-
-    if(!user || !user.auth0Id){
-        throw new Error("User of Auth0 ID not found")
-    }
-
-  
-
-    const token=await getAuth0Token();
-
-     const payload: any = { ...updates };
-  if (updates.password) {
-    payload.connection = 'Username-Password-Authentication';
-  }
-
-    await axios.patch(
-        `https://dev-kfmfhnq5hivv164x.us.auth0.com/api/v2/users/${user.auth0Id}`,
-        updates,
-        {
-            headers:{
-                Authorization: `Bearer ${token}`,
-            }
-        }
-    )
-
-    await updateUserStatus(email, 'updated', undefined, updates.name);
-}
-
-
-export const deleteUserFromAuth0=async(email:string):Promise<void>=>{
-    await connectDB();
-    
-    const user=await User.findOne({email});
+    const user = await User.findOne({ email });
 
     if (!user || !user.auth0Id) {
-    throw new Error('User not found or missing Auth0 ID');
+      throw ApplicationFailure.create({
+        message: `User or Auth0 ID not found for email: ${email}`,
+        type: "MissingAuth0ID",
+        nonRetryable: true,
+      });
+    }
+
+    const token = await getAuth0Token();
+
+    const payload: any = { ...updates };
+    if (updates.password) {
+      payload.connection = "Username-Password-Authentication";
+    }
+
+    await axios.patch(
+      `https://${process.env.AUTH0_DOMAIN}/api/v2/users/${user.auth0Id}`,
+      updates,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    await updateUserStatus(email, "updated", undefined, updates.name);
+  } catch (error: any) {
+    let errorMessage = `Failed to update user (email: ${email})`;
+
+    if (axios.isAxiosError(error) && error.response) {
+      const status = error.response.status;
+      const data = JSON.stringify(error.response.data);
+      errorMessage += ` — Auth0 responded with status ${status}: ${data}`;
+
+      if (status >= 400 && status < 500) {
+        throw ApplicationFailure.create({
+          message: errorMessage,
+          type: "Auth0ClientError",
+          nonRetryable: true,
+        });
+      }
+
+      throw ApplicationFailure.create({
+        message: errorMessage,
+        type: "Auth0ServerError",
+        nonRetryable: false,
+      });
+    } else if (axios.isAxiosError(error) && error.request) {
+      errorMessage += " — No response from Auth0 (network issue).";
+
+      throw ApplicationFailure.create({
+        message: errorMessage,
+        type: "NetworkError",
+        nonRetryable: false,
+      });
+    } else {
+      errorMessage += ` — Unexpected error: ${error?.message || "Unknown"}`;
+
+      throw ApplicationFailure.create({
+        message: errorMessage,
+        type: "GenericUpdateFailure",
+        nonRetryable: true,
+      });
+    }
   }
+};
 
+export const deleteUserFromAuth0 = async (email: string): Promise<void> => {
+  try {
+    await connectDB();
 
+    const user = await User.findOne({ email });
 
-    const token=await getAuth0Token();
+    if (!user || !user.auth0Id) {
+      throw ApplicationFailure.create({
+        message: `User not found or missing Auth0 ID for email: ${email}`,
+        type: "MissingAuth0ID",
+        nonRetryable: true,
+      });
+    }
+
+    const token = await getAuth0Token();
 
     await axios.delete(
-        `https://dev-kfmfhnq5hivv164x.us.auth0.com/api/v2/users/${user.auth0Id}`,
-    {
-        headers:{
-            Authorization: `Bearer ${token}`,
-        }
+      `https://${process.env.AUTH0_DOMAIN}/api/v2/users/${user.auth0Id}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+  } catch (error: any) {
+    let errorMessage = `Failed to delete user (email: ${email})`;
+
+    if (axios.isAxiosError(error) && error.response) {
+      const status = error.response.status;
+      const data = JSON.stringify(error.response.data);
+      errorMessage += ` — Auth0 responded with ${status}: ${data}`;
+
+      if (status >= 400 && status < 500) {
+        throw ApplicationFailure.create({
+          message: errorMessage,
+          type: "Auth0ClientError",
+          nonRetryable: true,
+        });
+      }
+
+      throw ApplicationFailure.create({
+        message: errorMessage,
+        type: "Auth0ServerError",
+        nonRetryable: false,
+      });
+    } else if (axios.isAxiosError(error) && error.request) {
+      errorMessage += " — No response from Auth0. Network issue?";
+      throw ApplicationFailure.create({
+        message: errorMessage,
+        type: "NetworkError",
+        nonRetryable: false,
+      });
+    } else {
+      errorMessage += ` — Unexpected error: ${error?.message || "Unknown"}`;
+      throw ApplicationFailure.create({
+        message: errorMessage,
+        type: "GenericDeleteFailure",
+        nonRetryable: true,
+      });
     }
- )
- await User.deleteOne({ email });
-}
+  }
+};
 
-export const listUsersFromAuth0=async():Promise<any[]>=>{
-   
+export const listUsersFromAuth0 = async (): Promise<any[]> => {
+  try {
+    const token = await getAuth0Token();
 
-    const token=await getAuth0Token();
-
-    const usersRes= await axios.get('https://dev-kfmfhnq5hivv164x.us.auth0.com/api/v2/users',{
-        headers:{
-             Authorization: `Bearer ${token}`,
-        }
-    })
+    const usersRes = await axios.get(
+      `https://${process.env.AUTH0_DOMAIN}/api/v2/users`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
 
     return usersRes.data;
-}
+  } catch (error: any) {
+    let errorMessage = `Failed to list users from Auth0`;
+
+    if (axios.isAxiosError(error) && error.response) {
+      const status = error.response.status;
+      const data = JSON.stringify(error.response.data);
+      errorMessage += ` — Auth0 responded with status ${status}: ${data}`;
+
+      if (status >= 400 && status < 500) {
+        throw ApplicationFailure.create({
+          message: errorMessage,
+          type: "Auth0ClientError",
+          nonRetryable: true,
+        });
+      }
+
+      throw ApplicationFailure.create({
+        message: errorMessage,
+        type: "Auth0ServerError",
+        nonRetryable: false,
+      });
+    } else if (axios.isAxiosError(error) && error.request) {
+      errorMessage += " — No response received from Auth0 (network issue).";
+      throw ApplicationFailure.create({
+        message: errorMessage,
+        type: "NetworkError",
+        nonRetryable: false,
+      });
+    } else {
+      errorMessage += ` — Unexpected error: ${
+        error?.message || "Unknown error"
+      }`;
+      throw ApplicationFailure.create({
+        message: errorMessage,
+        type: "GenericListFailure",
+        nonRetryable: true,
+      });
+    }
+  }
+};

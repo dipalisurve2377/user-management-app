@@ -8,10 +8,20 @@ dotenv.config();
 
 let connected = false;
 
-const connectDB = async () => {
-  if (!connected) {
+export const connectDB = async (): Promise<void> => {
+  if (connected) return;
+
+  try {
     await mongoose.connect(process.env.MONGO_URI as string);
     connected = true;
+    console.log("MongoDB connected.");
+  } catch (err: any) {
+    console.error("MongoDB connection failed:", err.message);
+    throw ApplicationFailure.create({
+      message: `MongoDB connection failed: ${err.message}`,
+      type: "MongoConnectionError",
+      nonRetryable: false,
+    });
   }
 };
 
@@ -102,6 +112,39 @@ export const createUserInAuth0 = async (
         nonRetryable: true,
       });
     }
+  }
+};
+
+export const saveAuth0IdToMongoDB = async (
+  email: string,
+  auth0Id: string
+): Promise<void> => {
+  await connectDB();
+
+  try {
+    const result = await User.findOneAndUpdate(
+      { email },
+      { auth0Id },
+      { new: true }
+    );
+
+    if (!result) {
+      throw ApplicationFailure.create({
+        message: `User not found with the email: ${email}`,
+        type: "MongoUserUpdateError",
+        nonRetryable: true,
+      });
+    }
+
+    console.log(`Saved Auth0 ID to MongoDB: ${auth0Id} for ${email}`);
+  } catch (error: any) {
+    console.log("MongoDB update failed");
+
+    throw ApplicationFailure.create({
+      message: `Failed to update Auth0 ID in MongoDB for email ${email}. ${error.message}`,
+      type: "MongoUserUpdateFailure",
+      nonRetryable: false,
+    });
   }
 };
 

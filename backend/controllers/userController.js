@@ -1,92 +1,106 @@
 import { triggerCreateUser } from "../workflows/triggerCreateUser.ts";
-import {triggerUpdateUser} from "../workflows/triggerUpdateUser.ts"
+import { triggerUpdateUser } from "../workflows/triggerUpdateUser.ts";
 import { triggerDeleteUser } from "../workflows/triggerDeleteUser.ts";
 import { triggerListUsers } from "../workflows/triggerListUsers.ts";
 import User from "../models/User.js";
 
-export const createUserController=async(req,res)=>{
+export const createUserController = async (req, res) => {
+  const { email, password, name } = req.body;
 
-    const {email,password,name}=req.body;
-
-    if(!email || !password|| !name)
-    {
-        return res.status(400).json({ error: 'Email ,Name and password are required.'})
-    }
-
-    try {      
-      await User.create({
-      email,
-      name,
-      password, 
-      status: 'provisioning',      
-    });
-
-    console.log(`[${new Date().toISOString()}] User saved with status 'provisioning'. Scheduling workflow...`);
-
-        const workflowId= await triggerCreateUser({email,password,name});
-        res.status(200).json({ message: 'User provisioning started', workflowId });
-
-    } catch (error) 
-    {
-    console.error('Error starting workflow:', error);
-    res.status(500).json({ error: 'Failed to start user creation workflow' });   
-    }
-}
-
-export const updateUserController=async(req,res)=>{
-    const {email,updates,name}=req.body;
-
-    if (!email || !updates) {
-    return res.status(400).json({ error: 'Email and updates are required.' });
+  if (!email || !password || !name) {
+    return res
+      .status(400)
+      .json({ error: "Email ,Name and password are required." });
   }
 
   try {
-    const workflowId=await triggerUpdateUser({email,updates});
-    res.status(200).json({ message: 'User update started', workflowId });
+    await User.create({
+      email,
+      name,
+      password,
+      status: "provisioning",
+    });
+
+    console.log(
+      `[${new Date().toISOString()}] User saved with status 'provisioning'. Scheduling workflow...`
+    );
+
+    const workflowId = await triggerCreateUser({ email, password, name });
+    res.status(200).json({ message: "User provisioning started", workflowId });
   } catch (error) {
-   console.error('Error starting update workflow:', error);
-    res.status(500).json({ error: 'Failed to start user update workflow' }); 
+    console.error("Error starting workflow:", error);
+    res.status(500).json({ error: "Failed to start user creation workflow" });
   }
-}
+};
+
+export const updateUserController = async (req, res) => {
+  const userId = req.params.id;
+
+  const { updates } = req.body;
+
+  if (!userId) {
+    return res.status(400).json({ error: "userId is required." });
+  }
+
+  try {
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const { email } = user;
+
+    const workflowId = await triggerUpdateUser({ email, updates });
+    res.status(200).json({ message: "User update started", workflowId });
+  } catch (error) {
+    console.error("Error starting update workflow:", error);
+    res.status(500).json({ error: "Failed to start user update workflow" });
+  }
+};
 
 // delete user
 
-export const deleteUserController=async (req,res)=>{
-    const {email}=req.body;
+export const deleteUserController = async (req, res) => {
+  const userId = req.params.id;
 
-  if (!email) {
-    return res.status(400).json({ error: 'Email is required.' });
+  if (!userId) {
+    return res.status(400).json({ error: "User ID is required." });
   }
 
   try {
-     const workflowId = await triggerDeleteUser({ email });
-    res.status(200).json({ message: 'User deletion started', workflowId });
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found." });
+    }
+
+    const workflowId = await triggerDeleteUser({
+      email: user.email,
+      userId: user._id.toString(),
+    });
+    res.status(200).json({ message: "User deletion started", workflowId });
   } catch (error) {
-   console.error('Error starting delete workflow:', error);
-    res.status(500).json({ error: 'Failed to start user deletion workflow' });   
+    console.error("Error starting delete workflow:", error);
+    res.status(500).json({ error: "Failed to start user deletion workflow" });
   }
-}
+};
 
+// list users
 
-// list users 
-
-export const listUsersController=async (req,res)=>{
-    try {
-    const users=await triggerListUsers();
-    const cleanedUsers = users.map(user => ({
-      name:user.name,
+export const listUsersController = async (req, res) => {
+  try {
+    const users = await triggerListUsers();
+    const cleanedUsers = users.map((user) => ({
+      name: user.name,
       email: user.email,
       user_id: user.user_id,
       created_at: user.created_at,
-      
     }));
 
     res.status(200).json({ users: cleanedUsers });
-        
-
-    } catch (error) {
-     
+  } catch (error) {
     console.error("Error listing users:", error);
-    res.status(500).json({ error: "Failed to fetch users from Auth0" });   
-    }
-}
+    res.status(500).json({ error: "Failed to fetch users from Auth0" });
+  }
+};

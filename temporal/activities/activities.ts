@@ -314,6 +314,32 @@ export const deleteUserFromAuth0 = async (email: string): Promise<void> => {
   }
 };
 
+export const deleteUserFromDB = async (userId: string): Promise<void> => {
+  try {
+    await connectDB();
+
+    const deletedUser = await User.findByIdAndDelete(userId);
+
+    if (!deletedUser) {
+      throw ApplicationFailure.create({
+        message: `User not found with userId: ${userId}`,
+        type: "MongoDeleteError",
+        nonRetryable: true,
+      });
+    }
+
+    console.log(`Deleted user from MongoDB: ${userId}`);
+  } catch (error: any) {
+    console.error("Error deleting user from MongoDB:", error);
+
+    throw ApplicationFailure.create({
+      message: `Failed to hard delete user from MongoDB. ${error.message}`,
+      type: "MongoDeleteFailure",
+      nonRetryable: false,
+    });
+  }
+};
+
 export const listUsersFromAuth0 = async (): Promise<any[]> => {
   try {
     const token = await getAuth0Token();
